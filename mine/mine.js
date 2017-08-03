@@ -221,6 +221,7 @@ Mine.prototype = {
     },
     getAroundUnknown:function (pos) {
         
+
     }
     
 
