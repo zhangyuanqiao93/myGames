@@ -219,12 +219,236 @@ Mine.prototype = {
         }
 
     },
-    getAroundUnknown:function (pos) {
+    getAroundUnknown:function (pos) {//计算周边有几个雷
         
+            var unKownArr = [];
+            var cellArr = this.cellArr;
+             //-1,-1;-1,0;-1,+1;0,-1;0,+1,+1,-1;+1,0;+1,+1
+            var arroundArr = [
+                [pos[0]-1,pos[1]-1],[pos[0]-1,pos[1]],
+                [pos[0]-1,pos[1]+1],[pos[0],pos[1]-1],
+                [pos[0],pos[1]+1],[pos[0]+1,pos[1]-1],
+                [pos[0]+1,pos[1]],[pos[0]+1,pos[1]+1]];
+        // var aroundUnknownNum = 0;
+        for(let i = 0;i< arroundArr.length;i++){
+            if (this.checkCell(arroundArr[i]) && cellArr[arroundArr[i][0]][arroundArr[i][1]].tag==0 &&
+                cellArr[arroundArr[i][0]][arroundArr[i][1]].isOpened ==false){
+                unKownArr.push(arroundArr[i]);
+            }
+        }
+        return unKownArr;
+    },
+    getArountTag:function (pos) {
+        var cellArr = this.cellArr;
+        // -1,-1;-1,0;-1,+1;0,-1;0+1;+1,-1;+1,0;+1,+1;
+        var aroundArr = [[pos[0]-1,pos[1]-1],[pos[0]-1,pos[1]],[pos[0]-1,pos[1]+1],[pos[0],pos[1]-1],[pos[0],pos[1]+1],[pos[0]+1,pos[1]-1],[pos[0]+1,pos[1]],[pos[0]+1,pos[1]+1]];
+        var tagNum = 0;
+        for(let i = 0;i<aroundArr.length;i++){
+            if (this.checkCell(aroundArr[i]) && cellArr[aroundArr[i][0]][aroundArr[i][1]].tag == 1){
+                tagNum++;
+            }
+        }
+        return tagNum;
+    },
+    onmouseout:function () {
+        var that = this;
+        this.ele.onmouseout = function (e) {
+            var pos = that.oldPos;
+            if (that.checkCell(pos) && (that.cellArr[pos[0]][pos[1]].isOpened == true ||
+                that.cellArr[pos[0]][pos[1]].tag != 0)) {
+                return;
+            }
+            that.drawCell(pos, 1);
+            pos = [0, 0];
 
+        }
+    },
+    /**
+     * 初始化每个格子的状态
+     */
+    createCells:function () {
+        var paneheight = this.paneheight;
+        var panewidth = this.panewidth;
+        for(let i= 1; i<= panewidth.length;i++){
+            this.cellArr[i] = [];
+            for (let j = 1;j<= paneheight;j++){
+                this.cellArr[i][j]= {
+                    isMine: false,
+                    isOpened:false,
+                    tag:0
+                };
+                this.drawCell([i,j],1);
+            }
+
+        }
+
+    },
+    /**
+     * 点击雷，show Mine,引爆所有雷
+     */
+    showMine:function () {
+        var mineArr = this.mineArr;
+        var pos='';
+        var area;
+        for (let i = 0; i < mineArr.length; i++) {
+            pos = mineArr[i];
+            this.drawCell(pos,5);
+            this.cellArr[pos[0]][pos[1]].isOpened = true;//让所有雷变成已打开。
+        }
+    },
+    /**
+     * 将标记错误的显示出来
+     */
+    showWrongTag:function () {
+        var  paneheight = 	this.paneheight;
+        var  panewidth = this.panewidth;
+
+        for(let i=1;i<=panewidth;i++){
+            for (let j = 1; j <= paneheight; j++) {
+                if(this.cellArr[i][j].isMine == false && this.cellArr[i][j].tag == 1){
+                    this.drawCell([i,j],7);
+                }
+            }
+        }
+    },
+    /**
+     * 计算周边有几个雷
+     * @param pos
+     * @returns {number}
+     */
+    calAround:function(pos){//计算周边一共有几个雷
+        var cellArr = this.cellArr;
+        var aroundArr = [[pos[0]-1,pos[1]-1],[pos[0]-1,pos[1]],[pos[0]-1,pos[1]+1],[pos[0],pos[1]-1],[pos[0],pos[1]+1],[pos[0]+1,pos[1]-1],[pos[0]+1,pos[1]],[pos[0]+1,pos[1]+1]];
+        var aroundMineNum = 0;
+        for (let i = 0; i < aroundArr.length; i++) {
+            aroundMineNum += this.checkMine(aroundArr[i]);
+        }
+        return aroundMineNum;
+    },
+    openZero:function(pos){//显示一个周边雷数量为0的格子周边8个格子包含几个雷。
+        var cellArr = this.cellArr;
+        var aroundArr = [[pos[0]-1,pos[1]-1],[pos[0]-1,pos[1]],[pos[0]-1,pos[1]+1],[pos[0],pos[1]-1],[pos[0],pos[1]+1],[pos[0]+1,pos[1]-1],[pos[0]+1,pos[1]],[pos[0]+1,pos[1]+1]];
+        var aroundMineNum = 0;
+        for (var i = 0; i < aroundArr.length; i++) {
+            if(this.checkCell(aroundArr[i])){
+                cellArr[aroundArr[i][0]][aroundArr[i][1]].isOpened = true;
+                aroundMineNum = this.calAround(aroundArr[i]);//附近雷的数量
+                this.drawNum(aroundArr[i],aroundMineNum);
+            }
+
+        }
+
+    },
+    drawCell:function(pos,type){//绘制不同种类的格子。
+        var area =  this.getCellArea(pos);
+        var cxt = this.cxt;
+        var image = new Image();
+        var src;
+        var srcArr = ["res/blank.bmp","res/0.bmp","res/flag.bmp","res/ask.bmp","res/mine.bmp","res/blood.bmp","res/error.bmp"];
+        //1正常格 2mouseover格子 3旗子格 4问号格 5正常雷格 6点中雷格 7.错误标记
+        var index  = type -1;
+        image.src =srcArr[index];
+        image.onload = function(){
+            cxt.drawImage(image,area[0],area[1],16,16);
+        }
+    },
+    drawNum:function(pos,num){//绘制数字
+        var area =  this.getCellArea(pos);
+        var cxt = this.cxt;
+        var image = new Image();
+        image.src = "res/"+num+".bmp";
+        image.onload = function(){
+            cxt.drawImage(image,area[0],area[1],16,16);
+        }
+    },
+    checkCell:function(pos){//检测位置有效性。
+        return this.cellArr[pos[0]] && this.cellArr[pos[0]][pos[1]] ;
+    },
+    createMines:function(pos){	//生成雷的位置。保存到一个数组[[2,3],[4,6]];
+
+        var minenum = this.minenum;
+        var mineArr = this.mineArr;
+        var mineItem='';
+        var cellArr = this.cellArr;
+
+        for (var i = 0; i < minenum; i++) {
+            //如果生成的重复了就重新生成。
+            do{
+                mineItem = [getRandom(this.panewidth),getRandom(this.paneheight)];
+            }while(in_array(mineItem,mineArr)||pos.toString()== mineItem.toString());
+            cellArr[mineItem[0]][mineItem[1]].isMine = true;
+            mineArr.push(mineItem);
+        };
+
+    },
+    checkMine:function(pos){//返回该位置是不是雷。
+        var cellArr = this.cellArr;
+        if(this.checkCell(pos) && cellArr[pos[0]][pos[1]].isMine == true){
+            return  true;
+        }
+        return false;
+    },
+    getCellArea:function(pos){//根据格子坐标返回一个格子左上角的像素坐标[32,666];
+        return [(pos[0]-1)*this.PANE_SIZE+1,(pos[1]-1)*this.PANE_SIZE+1];
+    },
+    getCellPos:function(coordinate){//根据像素坐标返回格子坐标。[3,5];
+        return [Math.ceil(coordinate.x/this.PANE_SIZE),Math.ceil(coordinate.y/this.PANE_SIZE)];
+    },
+    preRightMenu:function(){//阻止右键菜单
+        this.ele.oncontextmenu=function(event) {
+            if (document.all) window.event.returnValue = false;// for IE
+            else event.preventDefault();
+        }
+    },numToImage:function (num,ele){
+        if(num>999){
+            num = 999;
+        }else if(num<0){
+            //noinspection JSAnnotator
+            num = 000;
+        }else if(num<10){
+            num = "00"+num;
+        }	else if(num< 100){
+            num = "0"+num;
+        }
+        var ele = document.getElementsByClassName(ele)[0].getElementsByTagName('img');
+
+        for (var i = 0,eLen=ele.length; i < eLen; i++) {
+            ele[i].src="res/d"+num.toString().charAt(i)+".bmp";
+        };
     }
-    
-
 };
+
+
+/**
+ * 获取坐标：解决canvas在高分屏缩放150%之后坐标计算不准确的问题。
+ * https://github.com/zbinlin/blog/blob/master/getting-mouse-position-in-canvas.md
+ * @param evt
+ * @returns {{x: (number|Number), y: (number|Number)}}
+ */
+function getEventPosition(evt){
+    var x, y;
+    var x = evt.clientX;
+    var y = evt.clientY;
+    var rect =  document.getElementById('mine1').getBoundingClientRect();
+    x -= rect.left;
+    y -= rect.top;
+    return {x: x, y: y};
+}
+
+//生成随机正整数
+function getRandom(n){
+    return Math.floor(Math.random()*n+1)
+}
+
+//判断一个数组是否在另一个数组中。
+function in_array(stringToSearch, arrayToSearch) {
+    for (s = 0; s < arrayToSearch.length; s++) {
+        thisEntry = arrayToSearch[s].toString();
+        if (thisEntry == stringToSearch.toString()) {
+            return true;
+        }
+    }
+    return false;
+}
 
 
